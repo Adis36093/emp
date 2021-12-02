@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="afd721cb-b6c7-41c1-a741-03c1d6ede958" >
+		<db:my-sql-connection host="${db.host}" port="${db.port}" user="${db.username}" password="${db.password}" database="${db.database}" />
+	</db:config>
+	<flow name="empdetailsFlow" doc:id="1943e8ce-9dea-4d2f-92d1-51da57ffcbc1" >
+		<http:listener doc:name="Listener" doc:id="95ee5028-9cd0-40a3-8c46-8c0a03507759" path="/emp" config-ref="HTTP_Listener_config" allowedMethods="GET">
+			<http:response >
+				<http:body ><![CDATA[#[output application/json --- payload]]]></http:body>
+			</http:response>
+		</http:listener>
+		<db:select doc:name="Select" doc:id="14fc85a8-3c46-4347-a4e9-00b187579ea7" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM employees]]></db:sql>
+		</db:select>
+	</flow>
+	<flow name="getEmployeesByID" doc:id="24992809-1693-4394-9611-a3c91d5f966b" >
+		<http:listener doc:name="Copy_of_Listener" doc:id="11e080e2-d758-45bc-b403-0521cfcc649b" config-ref="HTTP_Listener_config" path="/emp/{id}" allowedMethods="GET" >
+			<http:response >
+				<http:body ><![CDATA[#[output application/json --- payload]]]></http:body>
+			</http:response>
+		</http:listener>
+		<db:select doc:name="Copy_of_Select" doc:id="a36d29d9-a2d5-4a26-baf0-3313384adfb1" config-ref="Database_Config" >
+			<db:sql ><![CDATA[SELECT * FROM employees WHERE id= :id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{ "id" : attributes.uriParams.id}]]]></db:input-parameters>
+		</db:select>
+	</flow>
+	<flow name="PostEmployee" doc:id="5a133190-c8ee-4c8c-92a3-1de07b70dd65" >
+		<http:listener doc:name="Listener" doc:id="b15aba3e-c013-4a45-8f50-52c1b27782a2" config-ref="HTTP_Listener_config" path="/emp" allowedMethods="POST">
+			<http:response >
+				<http:body ><![CDATA[#[output application/json --- payload]]]></http:body>
+			</http:response>
+		</http:listener>
+		<db:insert doc:name="Insert" doc:id="604c22d2-64d0-4aa7-a52d-7aa0a9211594" config-ref="Database_Config">
+			<db:sql ><![CDATA[INSERT INTO employees VALUES(:id, :name, :salary)]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{"id":payload.id, "name":payload.name, "salary":payload.salary}]]]></db:input-parameters>
+		</db:insert>
+		<ee:transform doc:name="Transform Message" doc:id="33e167a9-8617-4f68-874c-688cb9f77df9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : "Employee data added successfully"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="78d0e11e-80ac-471d-86c2-3f693f8e1599" message="'Employee added successfully'"/>
+	</flow>
+</mule>
